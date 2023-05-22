@@ -39,7 +39,7 @@ namespace AdvancedCSharp.Task3
         [Test]
         public void FileSystemVisitor_ReturnsAllFilesAndDirectories()
         {
-            var fileSystemVisitor = new FileSystemVisitor(testDirectory);
+            var fileSystemVisitor = new FileSystemVisitor(testDirectory, string.Empty, string.Empty);
 
             var results = fileSystemVisitor.GetEnumerator();
 
@@ -50,7 +50,7 @@ namespace AdvancedCSharp.Task3
         [Test]
         public void FileSystemVisitor_FiltersByExtension()
         {
-            var fileSystemVisitor = new FileSystemVisitor(testDirectory, file => Path.GetExtension(file) == ".txt");
+            var fileSystemVisitor = new FileSystemVisitor(testDirectory, ".txt", string.Empty);
 
             var results = fileSystemVisitor.GetEnumerator();
 
@@ -61,7 +61,7 @@ namespace AdvancedCSharp.Task3
         [Test]
         public void FileSystemVisitor_FiltersByName()
         {
-            var fileSystemVisitor = new FileSystemVisitor(testDirectory, file => Path.GetFileName(file) == "file1.txt");
+            var fileSystemVisitor = new FileSystemVisitor(testDirectory, string.Empty, "file1.txt");
 
             var results = fileSystemVisitor.GetEnumerator();
 
@@ -72,8 +72,7 @@ namespace AdvancedCSharp.Task3
         [Test]
         public void FileSystemVisitor_FiltersByExtensionAndName()
         {
-            var fileSystemVisitor = new FileSystemVisitor(testDirectory,
-                file => Path.GetExtension(file) == ".txt" && Path.GetFileName(file) == "file1.txt");
+            var fileSystemVisitor = new FileSystemVisitor(testDirectory, ".txt", "file1.txt");
 
             var results = fileSystemVisitor.GetEnumerator();
 

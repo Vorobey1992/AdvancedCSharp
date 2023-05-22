@@ -9,6 +9,11 @@ namespace AdvancedCSharp.Task1
     {
         private readonly string rootPath;
         private readonly Func<string, bool>? filter;
+        private readonly string searchExtension;
+        private readonly string searchCriteria;
+
+        private bool shouldAbortSearch;
+        private readonly HashSet<string> excludedItems;
 
         public event EventHandler Start;
         public event EventHandler Finish;
@@ -16,11 +21,16 @@ namespace AdvancedCSharp.Task1
         public event EventHandler<string>? DirectoryFound;
         public event EventHandler<string>? FilteredFileFound;
         public event EventHandler<string>? FilteredDirectoryFound;
+        public event EventHandler? AbortSearch;
+        public event EventHandler<string>? ExcludeFromList;
 
-        public FileSystemVisitor(string rootPath, Func<string, bool>? filter = null)
+        public FileSystemVisitor(string rootPath, string searchExtension, string searchCriteria, Func<string, bool>? filter = null)
         {
             this.rootPath = rootPath;
             this.filter = filter;
+            this.searchExtension = searchExtension;
+            this.searchCriteria = searchCriteria;
+            excludedItems = new HashSet<string>();
             Start = null!;
             Finish = null!;
         }
@@ -29,9 +39,20 @@ namespace AdvancedCSharp.Task1
         {
             OnStart();
 
-            foreach (string item in TraverseDirectory(rootPath))
+            shouldAbortSearch = false;
+
+            foreach (string item in TraverseDirectory(rootPath, searchExtension, searchCriteria))
             {
+                if (ShouldExcludeItem(item))
+                    continue;
+
+                if (filter != null && !filter(item))
+                    continue;
+
                 yield return item;
+
+                if (ShouldAbortSearch())
+                    yield break;
             }
 
             OnFinish();
@@ -72,15 +93,30 @@ namespace AdvancedCSharp.Task1
             FilteredDirectoryFound?.Invoke(this, directoryPath);
         }
 
-        private IEnumerable<string> TraverseDirectory(string directory)
+        protected virtual void OnAbortSearch()
+        {
+            AbortSearch?.Invoke(this, EventArgs.Empty);
+        }
+
+        protected virtual void OnExcludeFromList(string path)
+        {
+            ExcludeFromList?.Invoke(this, path);
+        }
+
+        private IEnumerable<string> TraverseDirectory(string directory, string searchExtension, string searchCriteria)
         {
             string[] files = Directory.GetFiles(directory);
             foreach (string file in files)
             {
-                OnFileFound(file);
+                string extension = Path.GetExtension(file);
+                string fileName = Path.GetFileName(file);
 
-                if (filter == null || filter(file))
+                bool matchExtension = string.IsNullOrEmpty(searchExtension) || extension == searchExtension;
+                bool matchCriteria = string.IsNullOrEmpty(searchCriteria) || fileName.Contains(searchCriteria);
+
+                if (matchExtension && matchCriteria)
                 {
+                    OnFileFound(file);
                     OnFilteredFileFound(file);
                     yield return file;
                 }
@@ -91,11 +127,41 @@ namespace AdvancedCSharp.Task1
             {
                 OnDirectoryFound(subdirectory);
 
-                foreach (string item in TraverseDirectory(subdirectory))
+                foreach (string item in TraverseDirectory(subdirectory, searchExtension, searchCriteria))
                 {
                     yield return item;
                 }
             }
+        }
+
+        private bool ShouldAbortSearch()
+        {
+            if (shouldAbortSearch)
+            {
+                OnAbortSearch();
+                return true;
+            }
+            return false;
+        }
+
+        private bool ShouldExcludeItem(string path)
+        {
+            if (excludedItems.Contains(path))
+            {
+                OnExcludeFromList(path);
+                return true;
+            }
+            return false;
+        }
+
+        public void Abort()
+        {
+            shouldAbortSearch = true;
+        }
+
+        public void ExcludeItem(string path)
+        {
+            excludedItems.Add(path);
         }
     }
 }
