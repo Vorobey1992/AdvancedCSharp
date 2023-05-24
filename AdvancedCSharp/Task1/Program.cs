@@ -16,13 +16,6 @@ while (string.IsNullOrWhiteSpace(rootPath) || !rootPathCheck)
     Console.WriteLine("Please enter extension if it's possible: ");
     string searchExtension = Console.ReadLine() ?? String.Empty;
 
-    Console.WriteLine("Do you want to display all files and folders? (Y/N)");
-    string displayOption = Console.ReadLine()?.Trim() ?? String.Empty;
-
-    bool showAllItems = displayOption?.Equals("Y", StringComparison.OrdinalIgnoreCase) ?? true;
-
-
-
 
 var fileSystemVisitor = new FileSystemVisitor(rootPath, searchExtension, searchCriteria, (file) =>
 {
@@ -84,21 +77,40 @@ fileSystemVisitor.FilteredDirectoryFound += (sender, directoryPath) =>
     Console.WriteLine($"Filtered directory found: {directoryPath}");
 };
 
+Console.WriteLine("Enter a command (exclude, abort, list, exit):");
+string command = Console.ReadLine()?.Trim() ?? string.Empty;
 
-fileSystemVisitor.AbortSearch += (sender, e) =>
+while (!command.Equals("exit", StringComparison.OrdinalIgnoreCase))
 {
-    // Обработчик события AbortSearch
-    fileSystemVisitor.Abort(); // Установка флага shouldAbortSearch в true
-};
+    switch (command)
+    {
+        case "exclude":
+            Console.WriteLine("Enter paths to exclude (separated by commas):");
+            string pathsToExclude = Console.ReadLine()?.Trim() ?? string.Empty;
+            if (!string.IsNullOrEmpty(pathsToExclude))
+            {
+                string[] paths = pathsToExclude.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string path in paths)
+                {
+                    fileSystemVisitor.ExcludeItem(path.Trim());
+                }
+            }
+            break;
+        case "abort":
+            fileSystemVisitor.Abort();
+            Console.WriteLine("Search aborted.");
+            break;
+        case "list":
+            foreach (string item in fileSystemVisitor)
+            {
+                Console.WriteLine(item);
+            }
+            break;
+        default:
+            Console.WriteLine("Invalid command.");
+            break;
+    }
 
-fileSystemVisitor.ExcludeFromList += (sender, path) =>
-{
-    // Обработчик события ExcludeFromList
-    fileSystemVisitor.ExcludeItem(path); // Добавление пути в список исключенных элементов
-};
-
-
-foreach (string item in fileSystemVisitor)
-{
-    Console.WriteLine(item);
+    Console.WriteLine("Enter a command (exclude, abort, list, exit):");
+    command = Console.ReadLine()?.Trim() ?? string.Empty;
 }

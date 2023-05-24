@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NUnit.Engine.Internal.Backports;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -14,6 +15,7 @@ namespace AdvancedCSharp.Task1
 
         private bool shouldAbortSearch;
         private readonly HashSet<string> excludedItems;
+        private bool exclude;
 
         public event EventHandler Start;
         public event EventHandler Finish;
@@ -21,8 +23,6 @@ namespace AdvancedCSharp.Task1
         public event EventHandler<string>? DirectoryFound;
         public event EventHandler<string>? FilteredFileFound;
         public event EventHandler<string>? FilteredDirectoryFound;
-        public event EventHandler? AbortSearch;
-        public event EventHandler<string>? ExcludeFromList;
 
         public FileSystemVisitor(string rootPath, string searchExtension, string searchCriteria, Func<string, bool>? filter = null)
         {
@@ -40,19 +40,21 @@ namespace AdvancedCSharp.Task1
             OnStart();
 
             shouldAbortSearch = false;
+            exclude = false;
 
             foreach (string item in TraverseDirectory(rootPath, searchExtension, searchCriteria))
             {
                 if (ShouldExcludeItem(item))
+                {
                     continue;
-
-                if (filter != null && !filter(item))
-                    continue;
+                }
 
                 yield return item;
 
                 if (ShouldAbortSearch())
+                {
                     yield break;
+                }
             }
 
             OnFinish();
@@ -73,34 +75,58 @@ namespace AdvancedCSharp.Task1
             Finish?.Invoke(this, EventArgs.Empty);
         }
 
-        protected virtual void OnFileFound(string filePath)
+        protected virtual void OnFileFound(string filePath, bool exclude)
         {
             FileFound?.Invoke(this, filePath);
+            if (exclude)
+            {
+                ExcludeItem(filePath);
+            }
+            if (filter != null)
+            {
+                bool filtered = filter(filePath);
+
+                if (filtered)
+                {
+                    OnFilteredFileFound(filePath, exclude);
+                }
+            }
         }
 
-        protected virtual void OnDirectoryFound(string directoryPath)
+        protected virtual void OnDirectoryFound(string directoryPath, bool exclude)
         {
             DirectoryFound?.Invoke(this, directoryPath);
+            if (exclude)
+            {
+                ExcludeItem(directoryPath);
+            }
+            if (filter != null)
+            {
+                bool filtered = filter(directoryPath);
+
+                if (filtered)
+                {
+                    OnFilteredDirectoryFound(directoryPath, exclude);
+                }
+            }
         }
 
-        protected virtual void OnFilteredFileFound(string filePath)
+        protected virtual void OnFilteredFileFound(string filePath, bool exclude)
         {
             FilteredFileFound?.Invoke(this, filePath);
+            if (exclude)
+            {
+                ExcludeItem(filePath);
+            }
         }
 
-        protected virtual void OnFilteredDirectoryFound(string directoryPath)
+        protected virtual void OnFilteredDirectoryFound(string directoryPath, bool exclude)
         {
             FilteredDirectoryFound?.Invoke(this, directoryPath);
-        }
-
-        protected virtual void OnAbortSearch()
-        {
-            AbortSearch?.Invoke(this, EventArgs.Empty);
-        }
-
-        protected virtual void OnExcludeFromList(string path)
-        {
-            ExcludeFromList?.Invoke(this, path);
+            if (exclude)
+            {
+                ExcludeItem(directoryPath);
+            }
         }
 
         private IEnumerable<string> TraverseDirectory(string directory, string searchExtension, string searchCriteria)
@@ -108,16 +134,15 @@ namespace AdvancedCSharp.Task1
             string[] files = Directory.GetFiles(directory);
             foreach (string file in files)
             {
-                string extension = Path.GetExtension(file);
-                string fileName = Path.GetFileName(file);
+                string extension = System.IO.Path.GetExtension(file);
+                string fileName = System.IO.Path.GetFileName(file);
 
                 bool matchExtension = string.IsNullOrEmpty(searchExtension) || extension == searchExtension;
                 bool matchCriteria = string.IsNullOrEmpty(searchCriteria) || fileName.Contains(searchCriteria);
 
                 if (matchExtension && matchCriteria)
                 {
-                    OnFileFound(file);
-                    OnFilteredFileFound(file);
+                    OnFileFound(file, exclude);
                     yield return file;
                 }
             }
@@ -125,30 +150,28 @@ namespace AdvancedCSharp.Task1
             string[] subdirectories = Directory.GetDirectories(directory);
             foreach (string subdirectory in subdirectories)
             {
-                OnDirectoryFound(subdirectory);
+                bool shouldExclude = ShouldExcludeItem(subdirectory);
 
-                foreach (string item in TraverseDirectory(subdirectory, searchExtension, searchCriteria))
+                OnDirectoryFound(subdirectory, shouldExclude);
+                if (!shouldExclude)
                 {
-                    yield return item;
+                    foreach (string item in TraverseDirectory(subdirectory, searchExtension, searchCriteria))
+                    {
+                        yield return item;
+                    }
                 }
             }
         }
 
         private bool ShouldAbortSearch()
         {
-            if (shouldAbortSearch)
-            {
-                OnAbortSearch();
-                return true;
-            }
-            return false;
+            return shouldAbortSearch;
         }
 
         private bool ShouldExcludeItem(string path)
         {
             if (excludedItems.Contains(path))
             {
-                OnExcludeFromList(path);
                 return true;
             }
             return false;

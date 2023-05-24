@@ -1,7 +1,10 @@
 ﻿using AdvancedCSharp.Task1;
+using NUnit.Engine.Internal.Backports;
 using NUnit.Framework;
 using System;
 using System.IO;
+using System.Linq;
+using static System.Net.WebRequestMethods;
 
 namespace AdvancedCSharp.Task3
 {
@@ -14,16 +17,16 @@ namespace AdvancedCSharp.Task3
         public void Setup()
         {
             // Create a temporary test directory
-            testDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            testDirectory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString());
             Directory.CreateDirectory(testDirectory);
 
             // Create some files and directories for testing
-            File.WriteAllText(Path.Combine(testDirectory, "file1.txt"), "Test file 1");
-            File.WriteAllText(Path.Combine(testDirectory, "file2.txt"), "Test file 2");
-            Directory.CreateDirectory(Path.Combine(testDirectory, "subdirectory1"));
-            Directory.CreateDirectory(Path.Combine(testDirectory, "subdirectory2"));
-            File.WriteAllText(Path.Combine(testDirectory, "subdirectory1", "file3.txt"), "Test file 3");
-            File.WriteAllText(Path.Combine(testDirectory, "subdirectory2", "file4.txt"), "Test file 4");
+            System.IO.File.WriteAllText(System.IO.Path.Combine(testDirectory, "file1.txt"), "Test file 1");
+            System.IO.File.WriteAllText(System.IO.Path.Combine(testDirectory, "file2.txt"), "Test file 2");
+            Directory.CreateDirectory(System.IO.Path.Combine(testDirectory, "subdirectory1"));
+            Directory.CreateDirectory(System.IO.Path.Combine(testDirectory, "subdirectory2"));
+            System.IO.File.WriteAllText(System.IO.Path.Combine(testDirectory, "subdirectory1", "file3.txt"), "Test file 3");
+            System.IO.File.WriteAllText(System.IO.Path.Combine(testDirectory, "subdirectory2", "file4.txt"), "Test file 4");
         }
 
         [TearDown]
@@ -77,6 +80,46 @@ namespace AdvancedCSharp.Task3
             var results = fileSystemVisitor.GetEnumerator();
 
             // Verify that only files with the specified extension and name are returned
+            Assert.That(GetCount(results), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void FileSystemVisitor_ExcludeFile()
+        {
+            string exclude = string.Concat(testDirectory,"\\", "file1.txt");
+
+            var fileSystemVisitor = new FileSystemVisitor(testDirectory, string.Empty, string.Empty);
+
+            fileSystemVisitor.ExcludeItem(exclude);
+
+            var results = fileSystemVisitor.GetEnumerator();
+
+            Assert.That(GetCount(results), Is.EqualTo(3));
+        }
+
+        [Test]
+        public void FileSystemVisitor_ExcludeFolder()
+        {
+            string exclude = string.Concat(testDirectory,"\\","subdirectory1");
+
+            var fileSystemVisitor = new FileSystemVisitor(testDirectory, string.Empty, string.Empty);
+
+            fileSystemVisitor.ExcludeItem(exclude);
+
+            var results = fileSystemVisitor.GetEnumerator();
+
+            Assert.That(GetCount(results), Is.EqualTo(3));
+        }
+
+        [Test]
+        public void FileSystemVisitor_Abort()
+        {
+            var fileSystemVisitor = new FileSystemVisitor(testDirectory, ".txt", "file1.txt");
+
+            fileSystemVisitor.FileFound += (sender, path) => { fileSystemVisitor.Abort(); };
+
+            var results = fileSystemVisitor.GetEnumerator();
+
             Assert.That(GetCount(results), Is.EqualTo(1));
         }
 
