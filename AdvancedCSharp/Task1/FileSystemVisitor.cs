@@ -15,7 +15,6 @@ namespace AdvancedCSharp.Task1
 
         private bool shouldAbortSearch;
         private readonly HashSet<string> excludedItems;
-        private bool exclude;
 
         public event EventHandler Start;
         public event EventHandler Finish;
@@ -38,9 +37,6 @@ namespace AdvancedCSharp.Task1
         public IEnumerator<string> GetEnumerator()
         {
             OnStart();
-
-            shouldAbortSearch = false;
-            exclude = false;
 
             foreach (string item in TraverseDirectory(rootPath, searchExtension, searchCriteria))
             {
@@ -75,58 +71,42 @@ namespace AdvancedCSharp.Task1
             Finish?.Invoke(this, EventArgs.Empty);
         }
 
-        protected virtual void OnFileFound(string filePath, bool exclude)
+        protected virtual void OnFileFound(string filePath)
         {
             FileFound?.Invoke(this, filePath);
-            if (exclude)
-            {
-                ExcludeItem(filePath);
-            }
             if (filter != null)
             {
                 bool filtered = filter(filePath);
 
                 if (filtered)
                 {
-                    OnFilteredFileFound(filePath, exclude);
+                    OnFilteredFileFound(filePath);
                 }
             }
         }
 
-        protected virtual void OnDirectoryFound(string directoryPath, bool exclude)
+        protected virtual void OnDirectoryFound(string directoryPath)
         {
             DirectoryFound?.Invoke(this, directoryPath);
-            if (exclude)
-            {
-                ExcludeItem(directoryPath);
-            }
             if (filter != null)
             {
                 bool filtered = filter(directoryPath);
 
                 if (filtered)
                 {
-                    OnFilteredDirectoryFound(directoryPath, exclude);
+                    OnFilteredDirectoryFound(directoryPath);
                 }
             }
         }
 
-        protected virtual void OnFilteredFileFound(string filePath, bool exclude)
+        protected virtual void OnFilteredFileFound(string filePath)
         {
             FilteredFileFound?.Invoke(this, filePath);
-            if (exclude)
-            {
-                ExcludeItem(filePath);
-            }
         }
 
-        protected virtual void OnFilteredDirectoryFound(string directoryPath, bool exclude)
+        protected virtual void OnFilteredDirectoryFound(string directoryPath)
         {
             FilteredDirectoryFound?.Invoke(this, directoryPath);
-            if (exclude)
-            {
-                ExcludeItem(directoryPath);
-            }
         }
 
         private IEnumerable<string> TraverseDirectory(string directory, string searchExtension, string searchCriteria)
@@ -142,7 +122,7 @@ namespace AdvancedCSharp.Task1
 
                 if (matchExtension && matchCriteria)
                 {
-                    OnFileFound(file, exclude);
+                    OnFileFound(file);
                     yield return file;
                 }
             }
@@ -152,7 +132,7 @@ namespace AdvancedCSharp.Task1
             {
                 bool shouldExclude = ShouldExcludeItem(subdirectory);
 
-                OnDirectoryFound(subdirectory, shouldExclude);
+                OnDirectoryFound(subdirectory);
                 if (!shouldExclude)
                 {
                     foreach (string item in TraverseDirectory(subdirectory, searchExtension, searchCriteria))
