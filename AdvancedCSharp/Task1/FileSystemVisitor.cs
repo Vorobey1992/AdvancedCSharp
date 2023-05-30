@@ -120,7 +120,9 @@ namespace AdvancedCSharp.Task1
                 bool matchExtension = string.IsNullOrEmpty(searchExtension) || extension == searchExtension;
                 bool matchCriteria = string.IsNullOrEmpty(searchCriteria) || fileName.Contains(searchCriteria);
 
-                if (matchExtension && matchCriteria)
+                bool shouldExclude = ShouldExcludeItem(file);
+
+                if (matchExtension && matchCriteria && !shouldExclude)
                 {
                     OnFileFound(file);
                     yield return file;
@@ -131,10 +133,11 @@ namespace AdvancedCSharp.Task1
             foreach (string subdirectory in subdirectories)
             {
                 bool shouldExclude = ShouldExcludeItem(subdirectory);
-
-                OnDirectoryFound(subdirectory);
+                
                 if (!shouldExclude)
                 {
+                    OnDirectoryFound(subdirectory);
+
                     foreach (string item in TraverseDirectory(subdirectory, searchExtension, searchCriteria))
                     {
                         yield return item;
