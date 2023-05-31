@@ -23,6 +23,8 @@ namespace AdvancedCSharp.Task1
         public event EventHandler<string>? FilteredFileFound;
         public event EventHandler<string>? FilteredDirectoryFound;
 
+        public int FoundFilesCount { get; private set; }
+
         public FileSystemVisitor(string rootPath, string searchExtension, string searchCriteria, Func<string, bool>? filter = null)
         {
             this.rootPath = rootPath;
@@ -74,15 +76,6 @@ namespace AdvancedCSharp.Task1
         protected virtual void OnFileFound(string filePath)
         {
             FileFound?.Invoke(this, filePath);
-            if (filter != null)
-            {
-                bool filtered = filter(filePath);
-
-                if (filtered)
-                {
-                    OnFilteredFileFound(filePath);
-                }
-            }
         }
 
         protected virtual void OnDirectoryFound(string directoryPath)
@@ -102,6 +95,7 @@ namespace AdvancedCSharp.Task1
         protected virtual void OnFilteredFileFound(string filePath)
         {
             FilteredFileFound?.Invoke(this, filePath);
+            FoundFilesCount++;
         }
 
         protected virtual void OnFilteredDirectoryFound(string directoryPath)
@@ -124,7 +118,7 @@ namespace AdvancedCSharp.Task1
 
                 if (matchExtension && matchCriteria && !shouldExclude)
                 {
-                    OnFileFound(file);
+                    OnFilteredFileFound(file);
                     yield return file;
                 }
             }
@@ -138,7 +132,12 @@ namespace AdvancedCSharp.Task1
                 {
                     OnDirectoryFound(subdirectory);
 
-                    foreach (string item in TraverseDirectory(subdirectory, searchExtension, searchCriteria))
+                    if (Console.KeyAvailable)
+                    {
+                        yield return subdirectory;
+                    }
+
+                        foreach (string item in TraverseDirectory(subdirectory, searchExtension, searchCriteria))
                     {
                         yield return item;
                     }
@@ -163,6 +162,10 @@ namespace AdvancedCSharp.Task1
         public void Abort()
         {
             shouldAbortSearch = true;
+        }
+        public void ResetAbort()
+        {
+            shouldAbortSearch = false;
         }
 
         public void ExcludeItem(string path)
